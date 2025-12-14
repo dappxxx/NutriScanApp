@@ -25,10 +25,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +39,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.nutriscan.app.data.model.ScanSession
+import com.nutriscan.app.data.model.StreakInfo
+import com.nutriscan.app.data.model.StreakStatus
 import com.nutriscan.app.data.model.UiState
 import com.nutriscan.app.ui.theme.*
 
@@ -54,6 +58,7 @@ fun HomeScreen(
     val healthConditions by viewModel.healthConditions.collectAsState()
     val personalizedTips by viewModel.personalizedTips.collectAsState()
     val updateHealthState by viewModel.updateHealthState.collectAsState()
+    val streakInfo by viewModel.streakInfo.collectAsState()
 
     var showHealthDialog by remember { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
@@ -115,6 +120,7 @@ fun HomeScreen(
             topBar = {
                 HomeTopBar(
                     userName = userName,
+                    streakInfo = streakInfo,
                     onProfileClick = onNavigateToProfile,
                     isVisible = isVisible
                 )
@@ -140,13 +146,29 @@ fun HomeScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // Health Profile Card
+                // 🔥 STREAK CARD - Posisi pertama
                 item {
                     AnimatedVisibility(
                         visible = isVisible,
                         enter = fadeIn(tween(400)) + slideInVertically(
-                            initialOffsetY = { 30 },
+                            initialOffsetY = { -30 },
                             animationSpec = tween(400)
+                        )
+                    ) {
+                        StreakCard(
+                            streakInfo = streakInfo,
+                            onScanClick = onNavigateToCamera
+                        )
+                    }
+                }
+
+                // Health Profile Card
+                item {
+                    AnimatedVisibility(
+                        visible = isVisible,
+                        enter = fadeIn(tween(400, delayMillis = 50)) + slideInVertically(
+                            initialOffsetY = { 30 },
+                            animationSpec = tween(400, delayMillis = 50)
                         )
                     ) {
                         HealthProfileCard(
@@ -305,65 +327,202 @@ fun HomeScreen(
     }
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════════
+// 🔥 STREAK CARD COMPONENT
+// ═══════════════════════════════════════════════════════════════════════════════════
+
 @Composable
-private fun HomeDecorativeBackground() {
-    Box(modifier = Modifier.fillMaxSize()) {
-        // Top right circle
-        Box(
-            modifier = Modifier
-                .size(250.dp)
-                .offset(x = 150.dp, y = (-80).dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            GreenLight.copy(alpha = 0.2f),
-                            Color.Transparent
-                        )
-                    ),
-                    shape = CircleShape
-                )
-        )
+fun StreakCard(
+    streakInfo: StreakInfo,
+    onScanClick: () -> Unit
+) {
+    val isActive = streakInfo.streakStatus == StreakStatus.ACTIVE
+    val isAtRisk = streakInfo.streakStatus == StreakStatus.AT_RISK
 
-        // Bottom left circle
-        Box(
-            modifier = Modifier
-                .size(200.dp)
-                .align(Alignment.BottomStart)
-                .offset(x = (-80).dp, y = 50.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            TealLight.copy(alpha = 0.2f),
-                            Color.Transparent
-                        )
-                    ),
-                    shape = CircleShape
-                )
-        )
+    // Animasi untuk api
+    val infiniteTransition = rememberInfiniteTransition(label = "fire")
 
-        // Middle right accent
-        Box(
-            modifier = Modifier
-                .size(150.dp)
-                .align(Alignment.CenterEnd)
-                .offset(x = 70.dp)
-                .background(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            OrangeLight.copy(alpha = 0.15f),
-                            Color.Transparent
-                        )
-                    ),
-                    shape = CircleShape
-                )
+    val fireScale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.15f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(600, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "fireScale"
+    )
+
+    val fireAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(400, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "fireAlpha"
+    )
+
+    val glowAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 0.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800, easing = EaseInOutCubic),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "glowAlpha"
+    )
+
+    // Warna berdasarkan status
+    val (bgColor, gradientColors, textColor) = when (streakInfo.streakStatus) {
+        StreakStatus.ACTIVE -> Triple(
+            StreakBgActive,
+            listOf(StreakActiveStart, StreakActiveMiddle, StreakActiveEnd),
+            FireOrange
+        )
+        StreakStatus.AT_RISK -> Triple(
+            StreakBgAtRisk,
+            listOf(StreakAtRiskStart, StreakAtRiskMiddle, StreakAtRiskEnd),
+            WarningOrange
+        )
+        StreakStatus.INACTIVE -> Triple(
+            StreakBgInactive,
+            listOf(StreakInactiveStart, StreakInactiveMiddle, StreakInactiveEnd),
+            TextSecondary
         )
     }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(
+                elevation = if (isActive) 12.dp else 4.dp,
+                shape = RoundedCornerShape(20.dp),
+                spotColor = if (isActive) FireOrange.copy(alpha = 0.4f) else Color.Gray.copy(alpha = 0.2f)
+            ),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(bgColor)
+        ) {
+            // Glow effect untuk active streak
+            if (isActive) {
+                Box(
+                    modifier = Modifier
+                        .size(150.dp)
+                        .align(Alignment.CenterStart)
+                        .offset(x = (-30).dp)
+                        .background(
+                            brush = Brush.radialGradient(
+                                colors = listOf(
+                                    FireOrange.copy(alpha = glowAlpha * 0.3f),
+                                    Color.Transparent
+                                )
+                            ),
+                            shape = CircleShape
+                        )
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Fire Icon dengan animasi
+                Box(
+                    modifier = Modifier
+                        .size(70.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            brush = Brush.linearGradient(
+                                colors = if (isActive || isAtRisk) gradientColors else listOf(Color.Gray.copy(alpha = 0.1f), Color.Gray.copy(alpha = 0.2f))
+                            )
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "🔥",
+                        fontSize = 36.sp,
+                        modifier = Modifier
+                            .scale(if (isActive) fireScale else 1f)
+                            .graphicsLayer {
+                                alpha = if (isActive) fireAlpha else 0.4f
+                            }
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                // Streak info - TANPA TOMBOL SCAN
+                Column(modifier = Modifier.weight(1f)) {
+                    // Streak Count
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "${streakInfo.currentStreak}",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontWeight = FontWeight.Bold
+                            ),
+                            color = textColor
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "hari streak",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = TextSecondary
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(4.dp))
+
+                    // Status message
+                    Text(
+                        text = when (streakInfo.streakStatus) {
+                            StreakStatus.ACTIVE -> "🎉 Streak aktif! Pertahankan!"
+                            StreakStatus.AT_RISK -> "⚠️ Scan hari ini agar streak tidak hilang!"
+                            StreakStatus.INACTIVE -> "Mulai streak baru dengan scan!"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = when (streakInfo.streakStatus) {
+                            StreakStatus.ACTIVE -> GreenPrimary
+                            StreakStatus.AT_RISK -> WarningOrange
+                            StreakStatus.INACTIVE -> TextSecondary
+                        }
+                    )
+
+                    // Longest streak
+                    if (streakInfo.longestStreak > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "🏆 Rekor: ${streakInfo.longestStreak} hari",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextHint
+                        )
+                    }
+                }
+
+                // TOMBOL SCAN DIHAPUS
+            }
+        }
+    }
 }
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// TOP BAR DENGAN MINI STREAK
+// ═══════════════════════════════════════════════════════════════════════════════════
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeTopBar(
     userName: String,
+    streakInfo: StreakInfo,
     onProfileClick: () -> Unit,
     isVisible: Boolean
 ) {
@@ -402,6 +561,19 @@ private fun HomeTopBar(
             }
         },
         actions = {
+            // Mini streak indicator
+            AnimatedVisibility(
+                visible = isVisible && streakInfo.currentStreak > 0,
+                enter = fadeIn(tween(400)) + scaleIn(
+                    initialScale = 0.8f,
+                    animationSpec = tween(400)
+                )
+            ) {
+                MiniStreakBadge(streakInfo = streakInfo)
+            }
+
+            Spacer(modifier = Modifier.width(8.dp))
+
             AnimatedVisibility(
                 visible = isVisible,
                 enter = fadeIn(tween(400)) + scaleIn(
@@ -412,7 +584,6 @@ private fun HomeTopBar(
                 IconButton(
                     onClick = onProfileClick,
                     modifier = Modifier
-                        .padding(end = 8.dp)
                         .size(44.dp)
                         .shadow(4.dp, CircleShape)
                         .clip(CircleShape)
@@ -431,6 +602,101 @@ private fun HomeTopBar(
             containerColor = Color.Transparent
         )
     )
+}
+
+@Composable
+fun MiniStreakBadge(streakInfo: StreakInfo) {
+    val isActive = streakInfo.streakStatus == StreakStatus.ACTIVE
+
+    val infiniteTransition = rememberInfiniteTransition(label = "minifire")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = if (isActive) FireOrange.copy(alpha = 0.15f) else Color.Gray.copy(alpha = 0.1f),
+        modifier = Modifier.padding(end = 4.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "🔥",
+                fontSize = 16.sp,
+                modifier = Modifier.scale(if (isActive) scale else 1f)
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(
+                text = "${streakInfo.currentStreak}",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = if (isActive) FireOrange else TextSecondary
+            )
+        }
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════════
+// KOMPONEN LAINNYA (TIDAK BERUBAH)
+// ═══════════════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun HomeDecorativeBackground() {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .size(250.dp)
+                .offset(x = 150.dp, y = (-80).dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            GreenLight.copy(alpha = 0.2f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(200.dp)
+                .align(Alignment.BottomStart)
+                .offset(x = (-80).dp, y = 50.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            TealLight.copy(alpha = 0.2f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+        Box(
+            modifier = Modifier
+                .size(150.dp)
+                .align(Alignment.CenterEnd)
+                .offset(x = 70.dp)
+                .background(
+                    brush = Brush.radialGradient(
+                        colors = listOf(
+                            OrangeLight.copy(alpha = 0.15f),
+                            Color.Transparent
+                        )
+                    ),
+                    shape = CircleShape
+                )
+        )
+    }
 }
 
 @Composable
@@ -533,7 +799,6 @@ fun HealthProfileCard(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon with gradient background
             Box(
                 modifier = Modifier
                     .size(52.dp)
@@ -650,7 +915,6 @@ fun HeroCard(onScanClick: () -> Unit) {
                     )
                 )
         ) {
-            // Decorative circles
             Box(
                 modifier = Modifier
                     .size(120.dp)
@@ -695,7 +959,6 @@ fun HeroCard(onScanClick: () -> Unit) {
 
                     Spacer(modifier = Modifier.width(12.dp))
 
-                    // Animated emoji
                     val infiniteTransition = rememberInfiniteTransition(label = "emoji")
                     val scale by infiniteTransition.animateFloat(
                         initialValue = 1f,
@@ -719,7 +982,6 @@ fun HeroCard(onScanClick: () -> Unit) {
         }
     }
 }
-
 
 @Composable
 fun RecentScansLoading() {
@@ -1087,7 +1349,6 @@ fun HealthConditionDialog(
             colors = CardDefaults.cardColors(containerColor = Color.White)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1125,7 +1386,6 @@ fun HealthConditionDialog(
                     }
                 }
 
-                // Content
                 LazyColumn(
                     modifier = Modifier
                         .weight(1f)
@@ -1299,7 +1559,6 @@ fun HealthConditionDialog(
                     }
                 }
 
-                // Footer
                 HorizontalDivider(color = GradientMiddle)
                 Row(
                     modifier = Modifier

@@ -19,6 +19,12 @@ data class Profile(
     @SerialName("birth_year")
     val birthYear: Int? = null,
     val gender: String? = null,
+    @SerialName("streak_count")
+    val streakCount: Int? = 0,
+    @SerialName("last_scan_date")
+    val lastScanDate: String? = null,
+    @SerialName("longest_streak")
+    val longestStreak: Int? = 0,
     @SerialName("updated_at")
     val updatedAt: String? = null,
     @SerialName("created_at")
@@ -29,17 +35,12 @@ data class Profile(
      */
     fun getAllHealthConditions(): List<String> {
         val conditions = mutableListOf<String>()
-
-        // Dari kolom health_conditions (array)
         healthConditions?.let { conditions.addAll(it) }
-
-        // Dari kolom health_condition (string, comma-separated)
         healthCondition?.let { condition ->
             if (condition.isNotBlank()) {
                 conditions.addAll(condition.split(",").map { it.trim() }.filter { it.isNotBlank() })
             }
         }
-
         return conditions.distinct()
     }
 
@@ -111,3 +112,32 @@ data class ProfileUpdate(
     @SerialName("updated_at")
     val updatedAt: String? = null
 )
+
+/**
+ * Data class untuk informasi Streak
+ */
+data class StreakInfo(
+    val currentStreak: Int = 0,
+    val longestStreak: Int = 0,
+    val lastScanDate: String? = null,
+    val isActiveToday: Boolean = false,
+    val streakStatus: StreakStatus = StreakStatus.INACTIVE
+)
+
+@Serializable
+data class StreakUpdate(
+    @SerialName("streak_count")
+    val streakCount: Int,
+    @SerialName("longest_streak")
+    val longestStreak: Int,
+    @SerialName("last_scan_date")
+    val lastScanDate: String,
+    @SerialName("updated_at")
+    val updatedAt: String
+)
+
+enum class StreakStatus {
+    ACTIVE,      // Sudah scan hari ini, streak menyala
+    AT_RISK,     // Belum scan hari ini, streak bisa hilang
+    INACTIVE     // Streak sudah reset (tidak scan kemarin)
+}

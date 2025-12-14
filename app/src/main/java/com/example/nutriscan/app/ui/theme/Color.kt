@@ -19,10 +19,10 @@ val OrangeLight = Color(0xFFFFAB91)
 val OrangeDark = Color(0xFFE64A19)
 
 // Gradient Colors
-val GradientStart = Color(0xFFF1F8E9)      // Very light green
-val GradientMiddle = Color(0xFFE8F5E9)     // Light green
-val GradientEnd = Color(0xFFC8E6C9)        // Soft green
-val GradientDark = Color(0xFF1B5E20)       // Dark green for dark mode
+val GradientStart = Color(0xFFF1F8E9)
+val GradientMiddle = Color(0xFFE8F5E9)
+val GradientEnd = Color(0xFFC8E6C9)
+val GradientDark = Color(0xFF1B5E20)
 
 // Card & Surface Colors
 val CardLight = Color(0xFFFFFFFF)
@@ -58,3 +58,33 @@ val TextHint = Color(0xFF9E9E9E)
 // Shimmer Colors
 val ShimmerLight = Color(0xFFE0E0E0)
 val ShimmerHighlight = Color(0xFFF5F5F5)
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STREAK FIRE COLORS 🔥
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Fire Gradient - Active Streak
+val FireOrange = Color(0xFFFF6B35)
+val FireYellow = Color(0xFFFFD93D)
+val FireRed = Color(0xFFFF4444)
+val FireCore = Color(0xFFFFFFFF)
+
+// Streak Active Colors
+val StreakActiveStart = Color(0xFFFF6B35)
+val StreakActiveMiddle = Color(0xFFFF8C42)
+val StreakActiveEnd = Color(0xFFFFD93D)
+
+// Streak Inactive Colors (Abu-abu/padam)
+val StreakInactiveStart = Color(0xFF9E9E9E)
+val StreakInactiveMiddle = Color(0xFFBDBDBD)
+val StreakInactiveEnd = Color(0xFFE0E0E0)
+
+// Streak At Risk Colors (Kuning warning)
+val StreakAtRiskStart = Color(0xFFFFB300)
+val StreakAtRiskMiddle = Color(0xFFFFCA28)
+val StreakAtRiskEnd = Color(0xFFFFE082)
+
+// Streak Background
+val StreakBgActive = Color(0xFFFFF3E0)
+val StreakBgInactive = Color(0xFFF5F5F5)
+val StreakBgAtRisk = Color(0xFFFFFDE7)

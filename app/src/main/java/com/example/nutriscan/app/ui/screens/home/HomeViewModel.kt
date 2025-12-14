@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutriscan.app.data.model.Profile
 import com.nutriscan.app.data.model.ScanSession
+import com.nutriscan.app.data.model.StreakInfo
+import com.nutriscan.app.data.model.StreakStatus
 import com.nutriscan.app.data.model.UiState
 import com.nutriscan.app.data.repository.AuthRepository
 import com.nutriscan.app.data.repository.ProfileRepository
@@ -37,9 +39,17 @@ class HomeViewModel : ViewModel() {
     private val _updateHealthState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val updateHealthState: StateFlow<UiState<Unit>> = _updateHealthState.asStateFlow()
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STREAK STATE 🔥
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    private val _streakInfo = MutableStateFlow(StreakInfo())
+    val streakInfo: StateFlow<StreakInfo> = _streakInfo.asStateFlow()
+
     init {
         loadUserData()
         loadRecentScans()
+        loadStreakInfo()
     }
 
     private fun loadUserData() {
@@ -48,13 +58,11 @@ class HomeViewModel : ViewModel() {
 
             val userId = authRepository.getCurrentUserId()
             if (userId != null) {
-                // Coba ambil dari profile database dulu
                 val result = profileRepository.getProfile(userId)
                 result.fold(
                     onSuccess = { profile ->
                         _profileState.value = UiState.Success(profile)
 
-                        // Prioritas: Profile DB > Auth Metadata > Default
                         val nameFromProfile = profile?.fullName
                         val nameFromAuth = authRepository.getCurrentUser()?.fullName
 
@@ -69,8 +77,6 @@ class HomeViewModel : ViewModel() {
                     },
                     onFailure = { error ->
                         _profileState.value = UiState.Error(error.message ?: "Gagal memuat profil")
-
-                        // Fallback ke auth metadata jika profile gagal
                         viewModelScope.launch {
                             val user = authRepository.getCurrentUser()
                             _userName.value = user?.fullName?.takeIf { it.isNotBlank() } ?: "User"
@@ -107,6 +113,39 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // STREAK FUNCTIONS 🔥
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Load streak info dari database
+     */
+    fun loadStreakInfo() {
+        viewModelScope.launch {
+            val userId = authRepository.getCurrentUserId()
+            if (userId != null) {
+                val result = profileRepository.getStreakInfo(userId)
+                result.fold(
+                    onSuccess = { info ->
+                        _streakInfo.value = info
+                        Log.d("HomeViewModel", "Streak loaded: $info")
+                    },
+                    onFailure = { error ->
+                        Log.e("HomeViewModel", "Failed to load streak: ${error.message}")
+                        _streakInfo.value = StreakInfo()
+                    }
+                )
+            }
+        }
+    }
+
+    /**
+     * Refresh streak (dipanggil setelah scan)
+     */
+    fun refreshStreak() {
+        loadStreakInfo()
+    }
+
     /**
      * Update riwayat penyakit user
      */
@@ -116,7 +155,6 @@ class HomeViewModel : ViewModel() {
 
             val userId = authRepository.getCurrentUserId()
 
-            // DEBUG LOG
             Log.d("HomeViewModel", "updateHealthConditions - userId: $userId")
             Log.d("HomeViewModel", "updateHealthConditions - conditions: $conditions")
 
@@ -149,19 +187,14 @@ class HomeViewModel : ViewModel() {
         val conditions = profile?.getAllHealthConditions() ?: emptyList()
 
         if (conditions.isEmpty()) {
-            // Tips umum jika tidak ada kondisi kesehatan
             tips.addAll(getGeneralHealthTips())
         } else {
-            // Tips berdasarkan kondisi kesehatan
             conditions.forEach { condition ->
                 tips.addAll(getTipsForCondition(condition))
             }
-
-            // Tambah beberapa tips umum
             tips.addAll(getGeneralHealthTips().take(2))
         }
 
-        // Remove duplicates dan shuffle
         _personalizedTips.value = tips.distinctBy { it.title }.shuffled().take(6)
     }
 
@@ -171,233 +204,32 @@ class HomeViewModel : ViewModel() {
         return when {
             conditionLower.contains("diabetes") || conditionLower.contains("gula darah") -> {
                 listOf(
-                    HealthTip(
-                        emoji = "🍬",
-                        title = "Batasi Gula",
-                        description = "Hindari makanan dengan gula >10g per sajian. Pilih makanan dengan indeks glikemik rendah.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🥗",
-                        title = "Perbanyak Serat",
-                        description = "Konsumsi sayuran hijau dan biji-bijian utuh untuk mengontrol gula darah.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "⏰",
-                        title = "Makan Teratur",
-                        description = "Jaga jadwal makan yang teratur untuk stabilkan kadar gula darah.",
-                        priority = HealthTipPriority.MEDIUM
-                    ),
-                    HealthTip(
-                        emoji = "🍎",
-                        title = "Pilih Buah Rendah GI",
-                        description = "Pilih apel, pir, jeruk daripada semangka atau nanas yang tinggi gula.",
-                        priority = HealthTipPriority.MEDIUM
-                    )
+                    HealthTip("🍬", "Batasi Gula", "Hindari makanan dengan gula >10g per sajian.", HealthTipPriority.HIGH),
+                    HealthTip("🥗", "Perbanyak Serat", "Konsumsi sayuran hijau dan biji-bijian utuh.", HealthTipPriority.HIGH),
+                    HealthTip("⏰", "Makan Teratur", "Jaga jadwal makan yang teratur.", HealthTipPriority.MEDIUM)
                 )
             }
-
-            conditionLower.contains("hipertensi") || conditionLower.contains("darah tinggi") || conditionLower.contains("tekanan darah") -> {
+            conditionLower.contains("hipertensi") || conditionLower.contains("darah tinggi") -> {
                 listOf(
-                    HealthTip(
-                        emoji = "🧂",
-                        title = "Kurangi Garam",
-                        description = "Batasi natrium <1500mg/hari. Hindari makanan kemasan tinggi natrium.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🍌",
-                        title = "Perbanyak Kalium",
-                        description = "Konsumsi pisang, alpukat, dan bayam untuk menyeimbangkan tekanan darah.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🚶",
-                        title = "Olahraga Teratur",
-                        description = "Jalan kaki 30 menit sehari membantu menurunkan tekanan darah.",
-                        priority = HealthTipPriority.MEDIUM
-                    ),
-                    HealthTip(
-                        emoji = "☕",
-                        title = "Batasi Kafein",
-                        description = "Kurangi kopi dan teh. Maksimal 2 cangkir kopi per hari.",
-                        priority = HealthTipPriority.MEDIUM
-                    )
+                    HealthTip("🧂", "Kurangi Garam", "Batasi natrium <1500mg/hari.", HealthTipPriority.HIGH),
+                    HealthTip("🍌", "Perbanyak Kalium", "Konsumsi pisang, alpukat, dan bayam.", HealthTipPriority.HIGH)
                 )
             }
-
             conditionLower.contains("kolesterol") -> {
                 listOf(
-                    HealthTip(
-                        emoji = "🥑",
-                        title = "Lemak Sehat",
-                        description = "Pilih alpukat, kacang-kacangan, dan minyak zaitun daripada lemak jenuh.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🐟",
-                        title = "Konsumsi Ikan",
-                        description = "Makan ikan berlemak (salmon, tuna) 2x seminggu untuk omega-3.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🚫",
-                        title = "Hindari Gorengan",
-                        description = "Kurangi makanan yang digoreng dan lemak trans dari makanan olahan.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🌾",
-                        title = "Pilih Whole Grain",
-                        description = "Ganti nasi putih dengan nasi merah atau oatmeal untuk serat lebih.",
-                        priority = HealthTipPriority.MEDIUM
-                    )
+                    HealthTip("🥑", "Lemak Sehat", "Pilih alpukat dan minyak zaitun.", HealthTipPriority.HIGH),
+                    HealthTip("🐟", "Konsumsi Ikan", "Makan ikan berlemak 2x seminggu.", HealthTipPriority.HIGH)
                 )
             }
-
-            conditionLower.contains("asam urat") || conditionLower.contains("gout") -> {
+            conditionLower.contains("maag") || conditionLower.contains("gerd") -> {
                 listOf(
-                    HealthTip(
-                        emoji = "💧",
-                        title = "Minum Air Putih",
-                        description = "Minimal 8-10 gelas per hari untuk membantu mengeluarkan asam urat.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🦐",
-                        title = "Hindari Purin Tinggi",
-                        description = "Batasi jeroan, seafood, dan daging merah yang tinggi purin.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🍒",
-                        title = "Konsumsi Ceri",
-                        description = "Ceri dan buah beri dapat membantu menurunkan kadar asam urat.",
-                        priority = HealthTipPriority.MEDIUM
-                    ),
-                    HealthTip(
-                        emoji = "🍺",
-                        title = "Hindari Alkohol",
-                        description = "Alkohol terutama bir dapat meningkatkan kadar asam urat.",
-                        priority = HealthTipPriority.HIGH
-                    )
+                    HealthTip("🍽️", "Makan Porsi Kecil", "Makan porsi kecil tapi sering.", HealthTipPriority.HIGH),
+                    HealthTip("🌶️", "Hindari Pedas", "Kurangi makanan pedas dan asam.", HealthTipPriority.HIGH)
                 )
             }
-
-            conditionLower.contains("maag") || conditionLower.contains("gerd") || conditionLower.contains("lambung") -> {
-                listOf(
-                    HealthTip(
-                        emoji = "🍽️",
-                        title = "Makan Porsi Kecil",
-                        description = "Makan porsi kecil tapi sering (5-6x sehari) untuk kurangi beban lambung.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🌶️",
-                        title = "Hindari Makanan Pedas",
-                        description = "Kurangi makanan pedas, asam, dan berminyak yang memicu asam lambung.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🛏️",
-                        title = "Jangan Langsung Tidur",
-                        description = "Tunggu 2-3 jam setelah makan sebelum berbaring atau tidur.",
-                        priority = HealthTipPriority.MEDIUM
-                    ),
-                    HealthTip(
-                        emoji = "☕",
-                        title = "Batasi Kafein",
-                        description = "Kurangi kopi dan minuman berkarbonasi yang merangsang asam lambung.",
-                        priority = HealthTipPriority.MEDIUM
-                    )
-                )
-            }
-
-            conditionLower.contains("obesitas") || conditionLower.contains("kegemukan") || conditionLower.contains("diet") -> {
-                listOf(
-                    HealthTip(
-                        emoji = "🥦",
-                        title = "Perbanyak Sayuran",
-                        description = "Isi setengah piring dengan sayuran untuk kenyang lebih lama dengan kalori rendah.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "📊",
-                        title = "Perhatikan Kalori",
-                        description = "Batasi 1500-1800 kkal/hari untuk penurunan berat badan yang sehat.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🏃",
-                        title = "Aktivitas Fisik",
-                        description = "Minimal 150 menit olahraga sedang per minggu untuk bakar kalori.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🍬",
-                        title = "Hindari Gula Tambahan",
-                        description = "Skip minuman manis dan makanan tinggi gula yang padat kalori.",
-                        priority = HealthTipPriority.MEDIUM
-                    )
-                )
-            }
-
-            conditionLower.contains("alergi") -> {
-                listOf(
-                    HealthTip(
-                        emoji = "📋",
-                        title = "Baca Label",
-                        description = "Selalu baca label makanan untuk mengidentifikasi alergen tersembunyi.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🏥",
-                        title = "Siapkan Obat",
-                        description = "Selalu bawa obat antihistamin atau EpiPen jika alergi parah.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🍳",
-                        title = "Masak Sendiri",
-                        description = "Masak di rumah lebih aman karena Anda kontrol semua bahan.",
-                        priority = HealthTipPriority.MEDIUM
-                    )
-                )
-            }
-
-            conditionLower.contains("anemia") || conditionLower.contains("kurang darah") -> {
-                listOf(
-                    HealthTip(
-                        emoji = "🥩",
-                        title = "Konsumsi Zat Besi",
-                        description = "Makan daging merah, bayam, dan kacang-kacangan yang kaya zat besi.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "🍊",
-                        title = "Vitamin C",
-                        description = "Kombinasikan makanan kaya besi dengan vitamin C untuk penyerapan optimal.",
-                        priority = HealthTipPriority.HIGH
-                    ),
-                    HealthTip(
-                        emoji = "☕",
-                        title = "Hindari Teh Saat Makan",
-                        description = "Tannin dalam teh dapat menghambat penyerapan zat besi.",
-                        priority = HealthTipPriority.MEDIUM
-                    )
-                )
-            }
-
             else -> {
-                // Kondisi tidak dikenal, return tips umum
                 listOf(
-                    HealthTip(
-                        emoji = "⚕️",
-                        title = "Konsultasi Dokter",
-                        description = "Selalu konsultasikan kondisi $condition dengan dokter untuk saran nutrisi spesifik.",
-                        priority = HealthTipPriority.HIGH
-                    )
+                    HealthTip("⚕️", "Konsultasi Dokter", "Konsultasikan kondisi $condition dengan dokter.", HealthTipPriority.HIGH)
                 )
             }
         }
@@ -405,48 +237,18 @@ class HomeViewModel : ViewModel() {
 
     private fun getGeneralHealthTips(): List<HealthTip> {
         return listOf(
-            HealthTip(
-                emoji = "💧",
-                title = "Minum Air Putih",
-                description = "Konsumsi minimal 8 gelas (2 liter) air putih setiap hari untuk hidrasi optimal.",
-                priority = HealthTipPriority.MEDIUM
-            ),
-            HealthTip(
-                emoji = "🥗",
-                title = "Perbanyak Sayur & Buah",
-                description = "Konsumsi 5 porsi sayur dan buah setiap hari untuk vitamin dan serat.",
-                priority = HealthTipPriority.MEDIUM
-            ),
-            HealthTip(
-                emoji = "🚶",
-                title = "Aktif Bergerak",
-                description = "Minimal 30 menit aktivitas fisik setiap hari untuk kesehatan jantung.",
-                priority = HealthTipPriority.MEDIUM
-            ),
-            HealthTip(
-                emoji = "😴",
-                title = "Tidur Cukup",
-                description = "Tidur 7-9 jam setiap malam untuk pemulihan tubuh yang optimal.",
-                priority = HealthTipPriority.LOW
-            ),
-            HealthTip(
-                emoji = "📖",
-                title = "Baca Label Nutrisi",
-                description = "Selalu periksa label nutrisi sebelum membeli makanan kemasan.",
-                priority = HealthTipPriority.LOW
-            ),
-            HealthTip(
-                emoji = "🍽️",
-                title = "Makan Teratur",
-                description = "Jaga pola makan 3x sehari dengan porsi seimbang.",
-                priority = HealthTipPriority.LOW
-            )
+            HealthTip("💧", "Minum Air Putih", "Konsumsi minimal 8 gelas air putih setiap hari.", HealthTipPriority.MEDIUM),
+            HealthTip("🥗", "Perbanyak Sayur & Buah", "Konsumsi 5 porsi sayur dan buah setiap hari.", HealthTipPriority.MEDIUM),
+            HealthTip("🚶", "Aktif Bergerak", "Minimal 30 menit aktivitas fisik setiap hari.", HealthTipPriority.MEDIUM),
+            HealthTip("😴", "Tidur Cukup", "Tidur 7-9 jam setiap malam.", HealthTipPriority.LOW),
+            HealthTip("📖", "Baca Label Nutrisi", "Selalu periksa label nutrisi sebelum membeli.", HealthTipPriority.LOW)
         )
     }
 
     fun refresh() {
         loadUserData()
         loadRecentScans()
+        loadStreakInfo()
     }
 
     fun resetUpdateState() {
@@ -454,9 +256,6 @@ class HomeViewModel : ViewModel() {
     }
 }
 
-/**
- * Data class untuk Health Tips
- */
 data class HealthTip(
     val emoji: String,
     val title: String,

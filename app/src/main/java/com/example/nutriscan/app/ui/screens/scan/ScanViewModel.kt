@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nutriscan.app.data.model.ScanSession
+import com.nutriscan.app.data.model.StreakInfo
 import com.nutriscan.app.data.model.UiState
 import com.nutriscan.app.data.remote.GeminiApiService
 import com.nutriscan.app.data.repository.AuthRepository
@@ -32,6 +33,10 @@ class ScanViewModel : ViewModel() {
 
     private val _analysisProgress = MutableStateFlow("")
     val analysisProgress: StateFlow<String> = _analysisProgress.asStateFlow()
+
+    // Streak info setelah scan
+    private val _streakInfo = MutableStateFlow<StreakInfo?>(null)
+    val streakInfo: StateFlow<StreakInfo?> = _streakInfo.asStateFlow()
 
     fun processScan(bitmap: Bitmap) {
         viewModelScope.launch {
@@ -87,6 +92,19 @@ class ScanViewModel : ViewModel() {
                 // 7. Simpan analisis sebagai chat pertama
                 chatRepository.insertMessage(session.id, "ai", analysis)
 
+                // 8. UPDATE STREAK 🔥
+                _analysisProgress.value = "🔥 Updating streak..."
+                val streakResult = profileRepository.updateStreakAfterScan(userId)
+                streakResult.fold(
+                    onSuccess = { info ->
+                        _streakInfo.value = info
+                        Log.d(TAG, "🔥 Streak updated: ${info.currentStreak} days")
+                    },
+                    onFailure = { error ->
+                        Log.e(TAG, "Failed to update streak: ${error.message}")
+                    }
+                )
+
                 Log.d(TAG, "✓ Scan berhasil!")
                 _analysisProgress.value = ""
                 _scanState.value = UiState.Success(session)
@@ -121,5 +139,6 @@ class ScanViewModel : ViewModel() {
     fun resetState() {
         _scanState.value = UiState.Idle
         _analysisProgress.value = ""
+        _streakInfo.value = null
     }
 }
