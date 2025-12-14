@@ -169,23 +169,6 @@ fun HomeScreen(
                     }
                 }
 
-                // Quick Actions
-                item {
-                    AnimatedVisibility(
-                        visible = isVisible,
-                        enter = fadeIn(tween(400, delayMillis = 200)) + slideInVertically(
-                            initialOffsetY = { 30 },
-                            animationSpec = tween(400, delayMillis = 200)
-                        )
-                    ) {
-                        QuickActionsSection(
-                            onScanClick = onNavigateToCamera,
-                            onHistoryClick = onNavigateToHistory,
-                            onProfileClick = onNavigateToProfile
-                        )
-                    }
-                }
-
                 // Recent Scans Header
                 item {
                     AnimatedVisibility(
@@ -732,156 +715,11 @@ fun HeroCard(onScanClick: () -> Unit) {
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
-
-                Button(
-                    onClick = onScanClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(14.dp),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 4.dp
-                    )
-                ) {
-                    Icon(
-                        Icons.Default.CameraAlt,
-                        contentDescription = null,
-                        tint = GreenPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "Mulai Scan",
-                        color = GreenPrimary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
             }
         }
     }
 }
 
-@Composable
-fun QuickActionsSection(
-    onScanClick: () -> Unit,
-    onHistoryClick: () -> Unit,
-    onProfileClick: () -> Unit
-) {
-    Column {
-        Text(
-            text = "Menu Cepat",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = GreenDark
-        )
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            QuickActionCard(
-                icon = Icons.Outlined.CameraAlt,
-                title = "Scan",
-                subtitle = "",
-                gradientColors = listOf(GreenPrimary, GreenLight),
-                onClick = onScanClick,
-                modifier = Modifier.weight(1f)
-            )
-            QuickActionCard(
-                icon = Icons.Outlined.History,
-                title = "Riwayat",
-                subtitle = "",
-                gradientColors = listOf(TealPrimary, TealLight),
-                onClick = onHistoryClick,
-                modifier = Modifier.weight(1f)
-            )
-            QuickActionCard(
-                icon = Icons.Outlined.Person,
-                title = "Profil",
-                subtitle = "",
-                gradientColors = listOf(OrangeAccent, OrangeLight),
-                onClick = onProfileClick,
-                modifier = Modifier.weight(1f)
-            )
-        }
-    }
-}
-
-@Composable
-fun QuickActionCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    gradientColors: List<Color>,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.95f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "scale"
-    )
-
-    Card(
-        modifier = modifier
-            .scale(scale)
-            .shadow(
-                elevation = 6.dp,
-                shape = RoundedCornerShape(18.dp),
-                spotColor = gradientColors.first().copy(alpha = 0.3f)
-            )
-            .clickable(
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick
-            ),
-        shape = RoundedCornerShape(18.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(50.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(
-                        brush = Brush.linearGradient(
-                            colors = gradientColors.map { it.copy(alpha = 0.15f) }
-                        )
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = gradientColors.first(),
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.SemiBold,
-                color = GreenDark
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelSmall,
-                color = TextSecondary
-            )
-        }
-    }
-}
 
 @Composable
 fun RecentScansLoading() {

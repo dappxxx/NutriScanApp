@@ -102,6 +102,8 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.monitor)
+    implementation(libs.androidx.junit.ktx)
 
     debugImplementation(libs.androidx.ui.tooling)
 }

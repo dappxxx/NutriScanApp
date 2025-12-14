@@ -27,10 +27,14 @@ class GeminiApiService {
         install(HttpTimeout) {
             requestTimeoutMillis = 120000
             connectTimeoutMillis = 30000
+            socketTimeoutMillis = 120000
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
     // SCAN GAMBAR
+    // ═══════════════════════════════════════════════════════════════════════════
+
     suspend fun scanAndAnalyze(
         bitmap: Bitmap,
         healthProfile: String = ""
@@ -45,13 +49,20 @@ class GeminiApiService {
             Log.d(TAG, "Image encoded, length: ${base64Image.length}")
 
             val prompt = buildScanPrompt(healthProfile)
+            Log.d(TAG, "Prompt length: ${prompt.length} chars")
 
             val result = callGeminiVision(prompt, base64Image)
 
             result.fold(
-                onSuccess = {
+                onSuccess = { response ->
                     Log.d(TAG, "✅ Scan berhasil!")
-                    Result.success(cleanResponse(it))
+                    Log.d(TAG, "📝 Response length: ${response.length} chars")
+                    Log.d(TAG, "Preview: ${response.take(300)}...")
+
+                    val cleaned = cleanResponse(response)
+                    Log.d(TAG, "📝 Cleaned length: ${cleaned.length} chars")
+
+                    Result.success(cleaned)
                 },
                 onFailure = {
                     Log.e(TAG, "❌ Scan gagal: ${it.message}")
@@ -70,7 +81,7 @@ class GeminiApiService {
 
         return if (hasProfile) {
             """
-Kamu adalah ahli gizi profesional. Baca label nutrisi pada gambar dengan AKURAT.
+Kamu adalah ahli gizi profesional. Baca label nutrisi pada gambar dengan AKURAT dan LENGKAP.
 
 ══════════════════════════════════════════════════════════════════════════════
 🏥 KONDISI KESEHATAN PENGGUNA:
@@ -82,8 +93,9 @@ ATURAN WAJIB:
 2. Seluruh analisis HARUS berdasarkan kondisi di atas
 3. DILARANG menyebut kondisi/penyakit yang TIDAK ada di profil
 4. JANGAN sebut: ibu hamil, menyusui, lansia, anak-anak, atau penyakit lain yang tidak ada di profil
+5. WAJIB memberikan output LENGKAP sesuai format
 
-FORMAT OUTPUT:
+FORMAT OUTPUT (WAJIB LENGKAP):
 
 📦 NAMA PRODUK
 [Baca nama produk dari gambar]
@@ -103,7 +115,7 @@ Jumlah sajian: [baca dari gambar]
 | Gula | [X] g | [X]% |
 | Natrium | [X] mg | [X]% |
 | Serat | [X] g | [X]% |
-[tambahkan nutrisi lain jika ada]
+[tambahkan nutrisi lain jika ada di label]
 
 📈 ANALISIS UNTUK KONDISI ANDA ($healthProfile)
 
@@ -113,7 +125,7 @@ Jumlah sajian: [baca dari gambar]
 
 [Analisis HANYA nutrisi yang relevan dengan kondisi di profil]
 
-⚠️ PERINGATAN UNTUK KONDISI ANDA ($healthProfile)
+⚠️ PERINGATAN UNTUK KONDISI ANDA
 
 🔴 Yang perlu Anda waspadai:
 • [Peringatan HANYA untuk kondisi yang ada di profil]
@@ -136,13 +148,13 @@ Jumlah sajian: [baca dari gambar]
 ✅ KESIMPULAN
 
 📊 Rating untuk kondisi Anda: [⭐⭐⭐⭐⭐] dari 5
-📝 [Kesimpulan spesifik untuk kondisi Anda]
+📝 [Kesimpulan spesifik untuk kondisi Anda dalam 2-3 kalimat]
 """.trimIndent()
         } else {
             """
-Kamu adalah ahli gizi profesional. Baca label nutrisi pada gambar dengan AKURAT.
+Kamu adalah ahli gizi profesional. Baca label nutrisi pada gambar dengan AKURAT dan LENGKAP.
 
-FORMAT OUTPUT:
+WAJIB memberikan output LENGKAP sesuai format berikut:
 
 📦 NAMA PRODUK
 [Baca nama produk dari gambar]
@@ -162,46 +174,56 @@ Jumlah sajian: [baca dari gambar]
 | Gula | [X] g | [X]% |
 | Natrium | [X] mg | [X]% |
 | Serat | [X] g | [X]% |
+[tambahkan nutrisi lain jika ada di label]
 
 📈 ANALISIS KANDUNGAN
 
-🔸 Energi: [analisis]
-🔸 Lemak: [analisis]
-🔸 Gula: [bandingkan dengan 25g/hari]
-🔸 Natrium: [bandingkan dengan 2000mg/hari]
+🔸 Energi: [analisis kalori, apakah tinggi/sedang/rendah]
+🔸 Lemak: [analisis lemak total dan jenuh]
+🔸 Gula: [bandingkan dengan batas 25g/hari WHO]
+🔸 Natrium: [bandingkan dengan batas 2000mg/hari]
+🔸 Protein: [apakah cukup sebagai sumber protein]
+🔸 Serat: [apakah mengandung serat yang baik]
 
 ⚠️ PERINGATAN UMUM
 
-🔴 Perlu diwaspadai: [kandungan tinggi]
-🟡 Perhatian untuk:
-• Diabetes: [saran gula]
-• Hipertensi: [saran natrium]
-• Kolesterol: [saran lemak]
-🟢 Hal positif: [kandungan baik]
+🔴 Perlu diwaspadai:
+• [Kandungan yang tinggi dan perlu perhatian]
 
-📅 REKOMENDASI
+🟡 Perhatian untuk kondisi tertentu:
+• Diabetes: [saran terkait gula]
+• Hipertensi: [saran terkait natrium]
+• Kolesterol: [saran terkait lemak jenuh]
 
-• Frekuensi: [X kali/minggu]
-• Porsi: [jumlah]
-• Waktu: [kapan]
+🟢 Hal positif:
+• [Kandungan yang baik untuk kesehatan]
 
-💡 TIPS
+📅 REKOMENDASI KONSUMSI
 
-1. [Tips #1]
-2. [Tips #2]
-3. [Tips #3]
+🕐 Frekuensi: [berapa kali per minggu yang aman]
+📏 Porsi: [jumlah porsi yang disarankan]
+⏰ Waktu terbaik: [kapan sebaiknya dikonsumsi]
+
+💡 TIPS SEHAT
+
+1. [Tips pertama untuk konsumsi produk ini]
+2. [Tips kedua]
+3. [Tips ketiga]
 
 ✅ KESIMPULAN
 
-📊 Rating: [⭐⭐⭐⭐⭐] dari 5
-📝 [Kesimpulan]
+📊 Rating kesehatan: [⭐⭐⭐⭐⭐] dari 5
+📝 [Kesimpulan keseluruhan dalam 2-3 kalimat]
 
-💡 Lengkapi profil kesehatan untuk analisis personal!
+💡 Lengkapi profil kesehatan Anda untuk mendapatkan analisis yang dipersonalisasi!
 """.trimIndent()
         }
     }
 
+    // ═══════════════════════════════════════════════════════════════════════════
     // CHAT
+    // ═══════════════════════════════════════════════════════════════════════════
+
     suspend fun chat(
         userMessage: String,
         productAnalysis: String,
@@ -209,14 +231,20 @@ Jumlah sajian: [baca dari gambar]
         healthProfile: String = ""
     ): Result<String> {
         return try {
-            Log.d(TAG, "Chat: $userMessage")
+            Log.d(TAG, "💬 Chat: ${userMessage.take(50)}...")
 
             val systemPrompt = buildChatPrompt(productAnalysis, healthProfile)
             val result = callGeminiChat(systemPrompt, userMessage, chatHistory)
 
             result.fold(
-                onSuccess = { Result.success(cleanResponse(it)) },
-                onFailure = { Result.failure(it) }
+                onSuccess = {
+                    Log.d(TAG, "✅ Chat berhasil, length: ${it.length}")
+                    Result.success(cleanResponse(it))
+                },
+                onFailure = {
+                    Log.e(TAG, "❌ Chat gagal: ${it.message}")
+                    Result.failure(it)
+                }
             )
 
         } catch (e: Exception) {
@@ -238,28 +266,39 @@ WAJIB pertimbangkan kondisi ini dalam setiap jawaban. JANGAN sebut kondisi lain 
         }
 
         return """
-Kamu adalah NutriScan AI, ahli gizi profesional.
+Kamu adalah NutriScan AI, ahli gizi profesional yang ramah dan informatif.
 
 $profileSection
 
-DATA PRODUK:
+DATA PRODUK YANG SEDANG DIBAHAS:
 $productAnalysis
 
 CARA MENJAWAB:
-1. Jawab NATURAL seperti ahli gizi sungguhan
-2. Jangan pakai template kaku
-3. Bahasa Indonesia yang ramah
-4. Boleh pakai emoji 😊
+1. Jawab dengan NATURAL seperti ahli gizi sungguhan
+2. Berikan informasi yang LENGKAP dan AKURAT
+3. Gunakan bahasa Indonesia yang ramah dan mudah dipahami
+4. Boleh gunakan emoji untuk membuat jawaban lebih menarik 😊
+5. Jika ditanya tentang nutrisi, berikan penjelasan yang edukatif
 
-TOPIK BOLEH: Gizi, nutrisi, makanan, diet, kesehatan makanan
-TOPIK DITOLAK: Politik, teknologi, hiburan, dll
+TOPIK YANG BOLEH DIBAHAS:
+- Gizi dan nutrisi
+- Makanan dan minuman
+- Diet dan pola makan sehat
+- Kesehatan terkait makanan
+- Kandungan produk yang sedang dibahas
 
-Jika ditanya di luar topik:
-"Maaf, saya asisten khusus gizi dan nutrisi 🍎 Ada yang ingin ditanyakan tentang nutrisi produk ini?"
+TOPIK YANG DITOLAK:
+- Politik, teknologi, hiburan, atau topik di luar gizi/nutrisi
+
+Jika ditanya di luar topik gizi/nutrisi, jawab dengan sopan:
+"Maaf, saya adalah asisten khusus untuk gizi dan nutrisi 🍎 Ada yang ingin ditanyakan tentang nutrisi produk ini atau tips kesehatan lainnya?"
 """.trimIndent()
     }
 
-    // API CALLS - DENGAN AUTO-RETRY MODELS
+    // ═══════════════════════════════════════════════════════════════════════════
+    // API CALLS
+    // ═══════════════════════════════════════════════════════════════════════════
+
     private suspend fun callGeminiVision(prompt: String, base64Image: String): Result<String> {
         val requestBody = buildJsonObject {
             put("contents", buildJsonArray {
@@ -276,10 +315,11 @@ Jika ditanya di luar topik:
                 })
             })
             put("generationConfig", buildJsonObject {
-                put("temperature", 0.1)
-                put("topK", 32)
-                put("topP", 1.0)
-                put("maxOutputTokens", 4096)
+                put("temperature", 0.3)
+                put("topK", 40)
+                put("topP", 0.95)
+                put("maxOutputTokens", 8192)
+                put("candidateCount", 1)
             })
             put("safetySettings", buildSafetySettings())
         }
@@ -293,21 +333,21 @@ Jika ditanya di luar topik:
         history: List<Pair<String, String>>
     ): Result<String> {
         val contents = buildJsonArray {
-            // System as first user message
+            // System prompt sebagai pesan pertama
             add(buildJsonObject {
                 put("role", "user")
                 put("parts", buildJsonArray {
-                    add(buildJsonObject { put("text", "INSTRUKSI: $systemPrompt") })
+                    add(buildJsonObject { put("text", "INSTRUKSI SISTEM: $systemPrompt") })
                 })
             })
             add(buildJsonObject {
                 put("role", "model")
                 put("parts", buildJsonArray {
-                    add(buildJsonObject { put("text", "Baik, saya siap membantu! 😊") })
+                    add(buildJsonObject { put("text", "Baik, saya siap membantu sebagai ahli gizi! 😊 Silakan tanyakan apa saja tentang nutrisi produk ini.") })
                 })
             })
 
-            // Chat history
+            // Chat history (ambil 10 terakhir)
             history.takeLast(10).forEach { (sender, message) ->
                 add(buildJsonObject {
                     put("role", if (sender == "user") "user" else "model")
@@ -317,7 +357,7 @@ Jika ditanya di luar topik:
                 })
             }
 
-            // Current message
+            // Pesan user saat ini
             add(buildJsonObject {
                 put("role", "user")
                 put("parts", buildJsonArray {
@@ -332,7 +372,8 @@ Jika ditanya di luar topik:
                 put("temperature", 0.7)
                 put("topK", 40)
                 put("topP", 0.95)
-                put("maxOutputTokens", 2048)
+                put("maxOutputTokens", 4096)
+                put("candidateCount", 1)
             })
             put("safetySettings", buildSafetySettings())
         }
@@ -341,74 +382,127 @@ Jika ditanya di luar topik:
     }
 
     /**
-     * Execute request dengan auto-retry berbagai model
+     * Execute request dengan auto-retry dan fallback model
      */
     private suspend fun executeGeminiRequest(requestBody: JsonObject): Result<String> {
-        // Daftar model yang akan dicoba secara berurutan
+        // Model yang tersedia, prioritaskan 2.0 untuk output stabil
         val models = listOf(
-            "gemini-2.0-flash",
-            "gemini-1.5-flash",
-            "gemini-1.5-flash-latest",
-            "gemini-1.5-pro",
-            "gemini-pro"
+            "gemini-2.5-flash",               // Backup - terbaru tapi output kadang beda
+            "gemini-2.0-flash",              // Utama - output stabil
+            "gemini-2.0-flash-001",          // Stable version
+            "gemini-2.0-flash-exp",          // Experimental
+
         )
 
         var lastError: String = "Unknown error"
+        var lastStatus: Int = 0
 
-        for (model in models) {
-            try {
-                // Build URL dengan model saat ini
-                val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=${Constants.GEMINI_API_KEY}"
+        for ((modelIndex, model) in models.withIndex()) {
+            var retryCount = 0
+            val maxRetries = 2
 
-                Log.d(TAG, "Trying model: $model")
+            while (retryCount < maxRetries) {
+                try {
+                    val url = "https://generativelanguage.googleapis.com/v1beta/models/$model:generateContent?key=${Constants.GEMINI_API_KEY}"
 
-                val response = client.post(url) {
-                    contentType(ContentType.Application.Json)
-                    setBody(json.encodeToString(requestBody))
-                }
+                    Log.d(TAG, "🔄 Model: $model | Attempt: ${retryCount + 1}/$maxRetries")
 
-                val responseText = response.bodyAsText()
-                val status = response.status.value
+                    val response = client.post(url) {
+                        contentType(ContentType.Application.Json)
+                        setBody(json.encodeToString(requestBody))
+                    }
 
-                Log.d(TAG, "Response status: $status")
+                    val responseText = response.bodyAsText()
+                    val status = response.status.value
+                    lastStatus = status
 
-                when (status) {
-                    200 -> {
-                        val content = extractContent(responseText)
-                        if (content.isNotBlank()) {
-                            Log.d(TAG, "✅ Success with model: $model")
-                            return Result.success(content)
-                        } else {
-                            Log.w(TAG, "Empty content from $model")
-                            lastError = "Empty response"
+                    Log.d(TAG, "📡 Status: $status")
+
+                    when (status) {
+                        200 -> {
+                            val content = extractContent(responseText)
+                            if (content.isNotBlank()) {
+                                Log.d(TAG, "✅ Berhasil dengan model: $model")
+                                return Result.success(content)
+                            } else {
+                                Log.w(TAG, "⚠️ Response kosong dari $model")
+                                lastError = "Response kosong"
+                                break
+                            }
+                        }
+
+                        404 -> {
+                            Log.w(TAG, "❌ Model $model tidak ditemukan")
+                            lastError = "Model tidak ditemukan"
+                            break
+                        }
+
+                        403 -> {
+                            Log.e(TAG, "🔒 API Key tidak valid (403)")
+                            return Result.failure(Exception("API Key tidak valid. Silakan periksa API Key Anda."))
+                        }
+
+                        429 -> {
+                            retryCount++
+                            Log.w(TAG, "⏳ Rate limit untuk $model (attempt $retryCount/$maxRetries)")
+
+                            if (retryCount < maxRetries) {
+                                // Delay: 20 detik, 40 detik
+                                val delaySeconds = 20 * retryCount
+                                Log.d(TAG, "⏰ Menunggu ${delaySeconds} detik...")
+                                kotlinx.coroutines.delay(delaySeconds * 1000L)
+                            } else {
+                                lastError = "Rate limit - terlalu banyak request"
+                                break
+                            }
+                        }
+
+                        500, 502, 503, 504 -> {
+                            retryCount++
+                            Log.w(TAG, "🔥 Server error $status (attempt $retryCount/$maxRetries)")
+
+                            if (retryCount < maxRetries) {
+                                kotlinx.coroutines.delay(5000L)
+                            } else {
+                                lastError = "Server error $status"
+                                break
+                            }
+                        }
+
+                        else -> {
+                            Log.e(TAG, "❌ Error $status: ${responseText.take(300)}")
+                            lastError = "Error $status"
+                            break
                         }
                     }
-                    404 -> {
-                        Log.w(TAG, "Model $model not found (404)")
-                        lastError = "Model not found"
-                        // Lanjut ke model berikutnya
-                    }
-                    403 -> {
-                        Log.e(TAG, "API Key invalid or no access (403)")
-                        return Result.failure(Exception("API Key tidak valid. Silakan buat API Key baru di https://aistudio.google.com/app/apikey"))
-                    }
-                    429 -> {
-                        Log.e(TAG, "Rate limit exceeded (429)")
-                        return Result.failure(Exception("Terlalu banyak request. Coba lagi dalam beberapa menit."))
-                    }
-                    else -> {
-                        Log.e(TAG, "Error $status: ${responseText.take(200)}")
-                        lastError = "Error $status"
+                } catch (e: Exception) {
+                    retryCount++
+                    Log.e(TAG, "💥 Exception: ${e.message}")
+                    lastError = e.message ?: "Network error"
+
+                    if (retryCount < maxRetries) {
+                        kotlinx.coroutines.delay(5000L)
+                    } else {
+                        break
                     }
                 }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception for $model: ${e.message}")
-                lastError = e.message ?: "Unknown error"
+            }
+
+            // Delay sebelum coba model berikutnya
+            if (modelIndex < models.size - 1) {
+                Log.d(TAG, "⏳ Delay 15 detik sebelum coba model berikutnya...")
+                kotlinx.coroutines.delay(15000L)
             }
         }
 
-        // Semua model gagal
-        return Result.failure(Exception("Gagal menghubungi AI. $lastError\n\nSolusi: Buat API Key baru di https://aistudio.google.com/app/apikey"))
+        // Error message yang informatif
+        val errorMessage = if (lastStatus == 429) {
+            "Terlalu banyak request.\n\n⏰ Tunggu 2 menit lalu coba lagi."
+        } else {
+            "Gagal analisis: $lastError\n\nSilakan coba lagi."
+        }
+
+        return Result.failure(Exception(errorMessage))
     }
 
     private fun buildSafetySettings(): JsonArray {
@@ -434,6 +528,7 @@ Jika ditanya di luar topik:
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
 
+        // Kompres gambar untuk mengurangi ukuran request
         val maxSize = 1024
         val scaledBitmap = if (bitmap.width > maxSize || bitmap.height > maxSize) {
             val scale = minOf(maxSize.toFloat() / bitmap.width, maxSize.toFloat() / bitmap.height)
@@ -445,14 +540,19 @@ Jika ditanya di luar topik:
             )
         } else bitmap
 
-        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 85, outputStream)
-        return Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+        scaledBitmap.compress(Bitmap.CompressFormat.JPEG, 80, outputStream)
+
+        val base64 = Base64.encodeToString(outputStream.toByteArray(), Base64.NO_WRAP)
+        Log.d(TAG, "📷 Image compressed: ${base64.length} chars")
+
+        return base64
     }
 
     private fun extractContent(responseText: String): String {
         return try {
             val jsonObj = json.parseToJsonElement(responseText).jsonObject
 
+            // Cek error
             jsonObj["error"]?.let { error ->
                 val message = error.jsonObject["message"]?.jsonPrimitive?.contentOrNull
                 Log.e(TAG, "API Error: $message")
@@ -461,27 +561,51 @@ Jika ditanya di luar topik:
 
             val candidates = jsonObj["candidates"]?.jsonArray
             if (candidates.isNullOrEmpty()) {
-                Log.e(TAG, "No candidates")
+                Log.e(TAG, "No candidates in response")
+                Log.d(TAG, "Response: ${responseText.take(500)}")
                 return ""
             }
 
-            candidates[0].jsonObject
-                .get("content")?.jsonObject
-                ?.get("parts")?.jsonArray
-                ?.get(0)?.jsonObject
-                ?.get("text")?.jsonPrimitive?.contentOrNull ?: ""
+            // Cek finish reason
+            val finishReason = candidates[0].jsonObject["finishReason"]?.jsonPrimitive?.contentOrNull
+            Log.d(TAG, "Finish reason: $finishReason")
+
+            if (finishReason == "SAFETY") {
+                Log.w(TAG, "⚠️ Response diblokir karena safety filter")
+                return "Maaf, konten tidak dapat ditampilkan karena filter keamanan."
+            }
+
+            val content = candidates[0].jsonObject["content"]?.jsonObject
+            val parts = content?.get("parts")?.jsonArray
+
+            if (parts.isNullOrEmpty()) {
+                Log.e(TAG, "No parts in content")
+                return ""
+            }
+
+            // Gabungkan semua parts
+            val fullText = StringBuilder()
+            for (part in parts) {
+                val text = part.jsonObject["text"]?.jsonPrimitive?.contentOrNull
+                if (!text.isNullOrBlank()) {
+                    fullText.append(text)
+                }
+            }
+
+            val result = fullText.toString()
+            Log.d(TAG, "📝 Extracted content: ${result.length} chars")
+
+            result
 
         } catch (e: Exception) {
             Log.e(TAG, "Extract error: ${e.message}")
+            Log.d(TAG, "Raw response: ${responseText.take(500)}")
             ""
         }
     }
 
     private fun cleanResponse(text: String): String {
         return text
-            .replace("**", "")
-            .replace("__", "")
-            .replace("```", "")
             .replace("\\n", "\n")
             .lines()
             .joinToString("\n") { it.trimEnd() }
