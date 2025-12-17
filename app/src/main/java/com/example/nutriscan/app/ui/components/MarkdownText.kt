@@ -310,7 +310,6 @@ private fun androidx.compose.ui.text.AnnotatedString.Builder.parseTableRow(
                 }
             }
         }
-
         // Add separator between cells
         if (index < cells.size - 1) {
             withStyle(SpanStyle(color = defaultColor.copy(alpha = 0.5f))) {
