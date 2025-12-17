@@ -4,6 +4,7 @@ object Constants {
     const val SUPABASE_URL = ""
     const val SUPABASE_KEY = ""
 
+
     const val OCR_SPACE_API_KEY = ""
     const val OCR_SPACE_URL = ""
 

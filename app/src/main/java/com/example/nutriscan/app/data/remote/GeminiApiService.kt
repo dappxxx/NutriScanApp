@@ -387,7 +387,7 @@ Jika ditanya di luar topik gizi/nutrisi, jawab dengan sopan:
     private suspend fun executeGeminiRequest(requestBody: JsonObject): Result<String> {
         // Model yang tersedia, prioritaskan 2.0 untuk output stabil
         val models = listOf(
-            "gemini-2.5-flash",               // Backup - terbaru tapi output kadang beda
+            "gemini-2.5-flash",              // Backup - terbaru tapi output kadang beda
             "gemini-2.0-flash",              // Utama - output stabil
             "gemini-2.0-flash-001",          // Stable version
             "gemini-2.0-flash-exp",          // Experimental
