@@ -59,7 +59,7 @@ class ScanViewModel : ViewModel() {
 
                 Log.d(TAG, "Health Profile: $healthProfile")
 
-                // 3. Upload gambar
+                // 3. Upload gambar ke supabase
                 _analysisProgress.value = "Mengupload gambar..."
                 val imageBytes = ImageUtils.bitmapToByteArray(bitmap, 85)
                 val fileName = ImageUtils.generateUniqueFileName()
