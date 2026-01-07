@@ -90,10 +90,7 @@ class ProfileRepository {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
     // STREAK FUNCTIONS
-    // ═══════════════════════════════════════════════════════════════════════════
-
     /**
      * Mendapatkan informasi streak user
      */
@@ -226,7 +223,7 @@ class ProfileRepository {
     }
 
     /**
-     * Hitung status streak berdasarkan tanggal
+     * Hitung status streak berdasarkan tanggal(logika penentuan status streak)
      */
     private fun calculateStreakStatus(
         currentStreak: Int,

@@ -39,17 +39,14 @@ class HomeViewModel : ViewModel() {
     private val _updateHealthState = MutableStateFlow<UiState<Unit>>(UiState.Idle)
     val updateHealthState: StateFlow<UiState<Unit>> = _updateHealthState.asStateFlow()
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // STREAK STATE 🔥
-    // ═══════════════════════════════════════════════════════════════════════════
-
+    // LOAD STREAK SAAT HOMESCREEN DIBUKA
     private val _streakInfo = MutableStateFlow(StreakInfo())
     val streakInfo: StateFlow<StreakInfo> = _streakInfo.asStateFlow()
 
     init {
         loadUserData()
         loadRecentScans()
-        loadStreakInfo()
+        loadStreakInfo() //refresh streak jika setelah scan
     }
 
     private fun loadUserData() {
@@ -113,13 +110,8 @@ class HomeViewModel : ViewModel() {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // STREAK FUNCTIONS 🔥
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * Load streak info dari database
-     */
+    // STREAK FUNCTIONS
+    //Load streak info dari database di panggil
     fun loadStreakInfo() {
         viewModelScope.launch {
             val userId = authRepository.getCurrentUserId()

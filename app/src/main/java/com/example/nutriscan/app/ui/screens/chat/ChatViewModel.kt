@@ -40,6 +40,7 @@ class ChatViewModel : ViewModel() {
     private var chatHistory: MutableList<Pair<String, String>> = mutableListOf()
     private var healthProfileSummary: String = ""
 
+    //load session
     fun loadSession(sessionId: String) {
         viewModelScope.launch {
             _sessionState.value = UiState.Loading
@@ -99,6 +100,7 @@ class ChatViewModel : ViewModel() {
         }
     }
 
+    //respon pertanyaan chat user
     fun sendMessage(message: String) {
         val session = currentSession ?: return
 

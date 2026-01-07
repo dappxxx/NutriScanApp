@@ -26,6 +26,7 @@ class ScanRepository {
         }
     }
 
+    //session baru
     suspend fun createScanSession(
         userId: String,
         imageUrl: String,
@@ -68,6 +69,7 @@ class ScanRepository {
         }
     }
 
+    //untuk mengambil id session yg di load di view model chat
     suspend fun getScanSession(sessionId: String): Result<ScanSession?> {
         return try {
             val session = postgrest.from("scan_sessions")

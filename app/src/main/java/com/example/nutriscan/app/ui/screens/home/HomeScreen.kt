@@ -70,7 +70,7 @@ fun HomeScreen(
     var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         isVisible = true
-        viewModel.refresh()
+        viewModel.refresh() // refresh semua data termasuk streak
     }
 
     LaunchedEffect(updateHealthState) {
@@ -146,7 +146,7 @@ fun HomeScreen(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
-                // 🔥 STREAK CARD - Posisi pertama
+                // menampilkan streak card
                 item {
                     AnimatedVisibility(
                         visible = isVisible,

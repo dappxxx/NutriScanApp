@@ -24,6 +24,7 @@ class ChatRepository {
         }
     }
 
+    //menyimpan chat sebagai analisi pertama
     suspend fun insertMessage(
         sessionId: String,
         sender: String,

@@ -46,7 +46,7 @@ fun ScanScreen(
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
     var tempImageFile by remember { mutableStateOf<File?>(null) }
 
-    // Gallery Picker
+    // pengambilan foto
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
@@ -66,7 +66,7 @@ fun ScanScreen(
         }
     }
 
-    // Handle scan result
+    // navigasi ke chat screen
     LaunchedEffect(scanState) {
         when (scanState) {
             is UiState.Success -> {
@@ -274,7 +274,7 @@ fun ScanScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // Analyze Button
+            // Button ambil gambar
             NutriButton(
                 text = "Analisis Gambar",
                 onClick = {

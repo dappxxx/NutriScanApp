@@ -114,7 +114,7 @@ data class ProfileUpdate(
 )
 
 /**
- * Data class untuk informasi Streak
+ * Data class untuk informasi Streak dan menampilkan streak di ui homescreenn
  */
 data class StreakInfo(
     val currentStreak: Int = 0,
@@ -124,6 +124,7 @@ data class StreakInfo(
     val streakStatus: StreakStatus = StreakStatus.INACTIVE
 )
 
+// Data Class untuk Update Database
 @Serializable
 data class StreakUpdate(
     @SerialName("streak_count")
@@ -136,6 +137,7 @@ data class StreakUpdate(
     val updatedAt: String
 )
 
+//informasi statur streak
 enum class StreakStatus {
     ACTIVE,      // Sudah scan hari ini, streak menyala
     AT_RISK,     // Belum scan hari ini, streak bisa hilang

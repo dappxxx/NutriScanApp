@@ -20,6 +20,26 @@ import com.nutriscan.app.ui.navigation.Screen
 import com.nutriscan.app.ui.theme.NutriScanTheme
 import kotlinx.coroutines.launch
 
+/**
+ * NUTRISCAN - Aplikasi Scan Nutrisi Makanan Kemasan
+
+ * ANGGOTA KELOMPOK:
+  1. Dafan Rusyda Hakim - NIM: 23523011
+  2. Fattan Prabowoningtyas - NIM: 23523156
+  3. Roid Hylmi - NIM: 23523131
+  4. Bintang - NIM: 23523195
+
+ * INFORMASI LOGIN (Untuk Testing):
+
+ * Email    : dafanrusyda@gmail.com
+ * Password : 123456
+
+ * CATATAN PENTING:
+ * 1. Pastikan device/emulator terhubung ke internet
+ * 2. Berikan izin kamera saat diminta
+ * 3. API Keys sudah dikonfigurasi di Constants.kt
+ */
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

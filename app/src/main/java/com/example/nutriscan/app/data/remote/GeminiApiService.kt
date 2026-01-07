@@ -521,10 +521,7 @@ Jika ditanya di luar topik gizi/nutrisi, jawab dengan sopan:
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
     // UTILITIES
-    // ═══════════════════════════════════════════════════════════════════════════
-
     private fun bitmapToBase64(bitmap: Bitmap): String {
         val outputStream = ByteArrayOutputStream()
 

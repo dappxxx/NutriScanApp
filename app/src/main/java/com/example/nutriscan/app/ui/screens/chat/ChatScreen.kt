@@ -39,6 +39,7 @@ import com.nutriscan.app.ui.components.TypingIndicator
 import com.nutriscan.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
+//ChatScreen Menerima sessionId lalu di load session di chat viw model
 @Composable
 fun ChatScreen(
     sessionId: String,
@@ -61,6 +62,7 @@ fun ChatScreen(
         isVisible = true
     }
 
+    //LOAD SESSION SAAT SCREEN DIBUKA
     LaunchedEffect(sessionId) {
         viewModel.loadSession(sessionId)
     }
@@ -153,7 +155,7 @@ fun ChatScreen(
                 }
             }
 
-            // Chat Input Bar - di bawah, akan otomatis naik dengan keyboard
+            // Chat Input Bar untuk user chat baru
             ChatInputBar(
                 value = inputText,
                 onValueChange = { inputText = it },
